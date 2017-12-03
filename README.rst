@@ -1,3 +1,8 @@
+Synopsis
+============
+This is a fork/branch of https://github.com/VUnit/vunit used to enable Icarus support for VUnit.
+
+
 What is VUnit?
 ==============
 
