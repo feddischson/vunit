@@ -9,6 +9,7 @@ Create simulator instances
 """
 
 import os
+from vunit.icarus_interface import IcarusInterface
 from vunit.modelsim_interface import ModelSimInterface
 from vunit.activehdl_interface import ActiveHDLInterface
 from vunit.rivierapro_interface import RivieraProInterface
@@ -33,7 +34,8 @@ class SimulatorFactory(object):
                 RivieraProInterface,
                 ActiveHDLInterface,
                 GHDLInterface,
-                IncisiveInterface]
+                IncisiveInterface,
+                IcarusInterface]
 
     def _extract_compile_options(self):
         """
