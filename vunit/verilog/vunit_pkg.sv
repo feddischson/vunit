@@ -6,15 +6,16 @@
 
 package vunit_pkg;
 
+typedef enum {idle,
+              init,
+              test_suite_setup,
+              test_case_setup,
+              test_case,
+              test_case_cleanup,
+              test_suite_cleanup}
+             phase_t;
+
 class test_runner;
-   typedef enum {idle,
-                 init,
-                 test_suite_setup,
-                 test_case_setup,
-                 test_case,
-                 test_case_cleanup,
-                 test_suite_cleanup}
-                phase_t;
 
    phase_t phase = idle;
    string       test_cases_found[$];
