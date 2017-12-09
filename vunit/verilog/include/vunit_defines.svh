@@ -6,28 +6,28 @@
 
 `define WATCHDOG(runtime) \
    initial begin \
-      __runner__.watchdog((runtime) / 1ns); \
+      test_runner.watchdog((runtime) / 1ns); \
    end
 
 `define TEST_SUITE_FROM_PARAMETER(parameter_name) \
-   parameter string parameter_name = ""; \
+   parameter parameter_name = ""; \
    import vunit_pkg::*; \
    initial \
-     if (__runner__.setup(parameter_name)) \
-      while (__runner__.loop)
+     if (test_runner.setup(parameter_name)) \
+      while (test_runner.loop())
 
 `define TEST_SUITE `TEST_SUITE_FROM_PARAMETER(runner_cfg)
 `define NESTED_TEST_SUITE `TEST_SUITE_FROM_PARAMETER(nested_runner_cfg)
 
-`define TEST_CASE(test_name) if (__runner__.run(test_name))
+`define TEST_CASE(test_name) if (test_runner.run(test_name))
 
-`define TEST_SUITE_SETUP if (__runner__.is_test_suite_setup())
-`define TEST_SUITE_CLEANUP if (__runner__.is_test_suite_cleanup())
+`define TEST_SUITE_SETUP if (test_runner.is_test_suite_setup())
+`define TEST_SUITE_CLEANUP if (test_runner.is_test_suite_cleanup())
 
-`define TEST_CASE_SETUP if (__runner__.is_test_case_setup())
-`define TEST_CASE_CLEANUP if (__runner__.is_test_case_cleanup())
+`define TEST_CASE_SETUP if (test_runner.is_test_case_setup())
+`define TEST_CASE_CLEANUP if (test_runner.is_test_case_cleanup())
 `define CHECK_EQUAL(got,expected,msg=__none__) \
-        assert ((got) === (expected)) else \
+        if ((got) !== (expected)) \
           begin \
              string __none__; \
              string got_str; \
@@ -45,7 +45,7 @@
                      break_cond = 1; \
                   end \
                end \
-             bit   break_cond = 0;\
+               break_cond = 0;\
                for (int i=0; i<expected_str.len() && !break_cond; i++) begin \
                   if (expected_str[i] != " ") begin \
                      expected_str = expected_str.substr(i, expected_str.len()-1); \

@@ -14,9 +14,10 @@ typedef enum {idle,
               test_case_cleanup,
               test_suite_cleanup}
              phase_t;
+endpackage
 
-class test_runner;
-
+module test_runner;
+   import vunit_pkg::*;
    phase_t phase = idle;
    string       test_cases_found[$];
    string       test_cases_to_run[$];
@@ -34,7 +35,7 @@ class test_runner;
       bit       break_cond = 0;
 
       while(!break_cond) begin
-         if (original[original_index] == old[replace_index]) begin
+         if (original.substr(original_index,original_index) == old.substr(replace_index,replace_index)) begin
             if (replace_index == 0) begin
                start_index = original_index;
             end
@@ -77,7 +78,7 @@ class test_runner;
       for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
          if (runner_cfg.substr(i, i+prefix.len()-1) == prefix) begin
             index = i + prefix.len();
-	        break_cond = 1;
+            break_cond = 1;
          end
       end
 
@@ -94,7 +95,7 @@ class test_runner;
             test_cases_to_run.push_back(runner_cfg.substr(index, i-1));
             index = i+2;
             i++;
-            if (runner_cfg[i] != ",") begin
+            if (runner_cfg.substr(i,i) != ",") begin
                break_cond = 1;
             end
          end
@@ -106,7 +107,7 @@ class test_runner;
       for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
          if (runner_cfg.substr(i, i+prefix.len()-1) == prefix) begin
             index = i + prefix.len();
-	        break_cond = 1;
+            break_cond = 1;
          end
       end
 
@@ -122,7 +123,7 @@ class test_runner;
          end
          else if (runner_cfg[i] == ",") begin
             i++;
-            if (runner_cfg[i] != ",") begin
+            if (runner_cfg.substr(i,i) != ",") begin
                output_path = runner_cfg.substr(index, i-2);
                break_cond = 1;
             end
@@ -138,20 +139,28 @@ class test_runner;
       return 1;
    endfunction
 
-   function void cleanup();
+   task cleanup;
       exit_without_errors = 1;
       $stop(0);
-   endfunction
+   endtask
 
    function int loop();
       int       exit_without_errors;
       bit       break_cond = 0;
+      int       found;
 
       if (phase == init) begin
          if (test_cases_to_run[0] == "__all__") begin
-            test_cases_to_run = test_cases_found;
+
+            // Clear the `test_cases_to_run` queue and copy everything
+            // from `test_cases_found` to `test_cases_to_run`.
+            for(int i=0; i < test_cases_to_run.size(); i++ ) begin
+               test_cases_to_run.delete(0);
+            end
+            foreach( test_cases_found[i] ) begin
+               test_cases_to_run.push_back( test_cases_found[i]);
+            end
          end else begin
-            int found;
             foreach (test_cases_to_run[j]) begin
                found = 0;
                foreach (test_cases_found[i]) begin
@@ -181,10 +190,10 @@ class test_runner;
          cleanup();
          return 0;
       end else begin
-         phase = phase_t'(phase + 1);
+        phase++;
       end
 
-      return 1;
+     return 1;
    endfunction
 
    function int run(string test_name);
@@ -229,7 +238,5 @@ class test_runner;
       join
    endtask
 
-endclass
+endmodule
 
-   test_runner __runner__ = new;
-endpackage
