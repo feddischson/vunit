@@ -34,20 +34,22 @@
              string expected_str; \
              string full_msg; \
              int index; \
+             bit   break_cond = 0;\
              got_str = "";\
              expected_str ="";\
              $swrite(got_str, got); \
              $swrite(expected_str, expected); \
-               for (int i=0; i<got_str.len(); i++) begin \
+               for (int i=0; i<got_str.len() && !break_cond; i++) begin \
                   if (got_str[i] != " ") begin \
                      got_str = got_str.substr(i, got_str.len()-1); \
-                     break; \
+                     break_cond = 1; \
                   end \
                end \
-               for (int i=0; i<expected_str.len(); i++) begin \
+             bit   break_cond = 0;\
+               for (int i=0; i<expected_str.len() && !break_cond; i++) begin \
                   if (expected_str[i] != " ") begin \
                      expected_str = expected_str.substr(i, expected_str.len()-1); \
-                     break; \
+                     break_cond = 1; \
                   end \
                end \
              full_msg = {"CHECK_EQUAL failed! Got ",`"got`", "=",  got_str, " expected ", expected_str, ". ", msg}; \

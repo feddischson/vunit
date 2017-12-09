@@ -31,8 +31,9 @@ class test_runner;
       int       original_index = 0;
       int       replace_index = 0;
       bit       found = 0;
+      bit       break_cond = 0;
 
-      while(1) begin
+      while(!break_cond) begin
          if (original[original_index] == old[replace_index]) begin
             if (replace_index == 0) begin
                start_index = original_index;
@@ -41,7 +42,7 @@ class test_runner;
             original_index++;
             if (replace_index == old.len()) begin
                found = 1;
-               break;
+               break_cond = 1;
             end
          end else if (replace_index != 0) begin
             replace_index = 0;
@@ -51,7 +52,7 @@ class test_runner;
          end
          if (original_index == original.len()) begin
             // Not found
-            break;
+            break_cond = 1;
          end
       end
 
@@ -69,13 +70,14 @@ class test_runner;
       // Ugly hack pending actual dictionary parsing
       string    prefix;
       int       index;
+      bit       break_cond = 0;
 
       prefix = "enabled_test_cases : ";
       index = -1;
-      for (int i=0; i<runner_cfg.len(); i++) begin
+      for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
          if (runner_cfg.substr(i, i+prefix.len()-1) == prefix) begin
             index = i + prefix.len();
-            break;
+	        break_cond = 1;
          end
       end
 
@@ -83,7 +85,8 @@ class test_runner;
          $error("Internal error: Cannot find 'enabled_test_cases' key");
       end
 
-      for (int i=index; i<runner_cfg.len(); i++) begin
+      break_cond = 0;
+      for (int i=index; i<runner_cfg.len() && !break_cond; i++) begin
          if (i == runner_cfg.len()-1) begin
             test_cases_to_run.push_back(runner_cfg.substr(index, i));
          end
@@ -92,17 +95,18 @@ class test_runner;
             index = i+2;
             i++;
             if (runner_cfg[i] != ",") begin
-               break;
+               break_cond = 1;
             end
          end
       end
 
       prefix = "output path : ";
       index = -1;
-      for (int i=0; i<runner_cfg.len(); i++) begin
+      break_cond = 0;
+      for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
          if (runner_cfg.substr(i, i+prefix.len()-1) == prefix) begin
             index = i + prefix.len();
-            break;
+	        break_cond = 1;
          end
       end
 
@@ -110,16 +114,17 @@ class test_runner;
          $error("Internal error: Cannot find 'output path' key");
       end
 
-      for (int i=index; i<runner_cfg.len(); i++) begin
+      break_cond = 0;
+      for (int i=index; i<runner_cfg.len() && !break_cond; i++) begin
          if (i == runner_cfg.len()-1) begin
             output_path = runner_cfg.substr(index, i);
-            break;
+            break_cond = 1;
          end
          else if (runner_cfg[i] == ",") begin
             i++;
             if (runner_cfg[i] != ",") begin
                output_path = runner_cfg.substr(index, i-2);
-               break;
+               break_cond = 1;
             end
          end
       end
@@ -140,6 +145,7 @@ class test_runner;
 
    function int loop();
       int       exit_without_errors;
+      bit       break_cond = 0;
 
       if (phase == init) begin
          if (test_cases_to_run[0] == "__all__") begin
@@ -149,9 +155,9 @@ class test_runner;
             foreach (test_cases_to_run[j]) begin
                found = 0;
                foreach (test_cases_found[i]) begin
-                  if (test_cases_found[i] == test_cases_to_run[j]) begin
+                  if (!break_cond && (test_cases_found[i] == test_cases_to_run[j])) begin
                      found = 1;
-                     break;
+                     break_cond = 1;
                   end
                end
                if (!found) begin
