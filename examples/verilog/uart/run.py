@@ -17,4 +17,6 @@ uart_lib.add_source_files(join(src_path, "*.sv"))
 tb_uart_lib = ui.add_library("tb_uart_lib")
 tb_uart_lib.add_source_files(join(src_path, "test", "*.sv"))
 
+ui.set_parameter("D_WIDTH", 10)
+
 ui.main()

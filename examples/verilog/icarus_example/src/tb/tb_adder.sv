@@ -4,7 +4,7 @@
 module tb_adder;
 
    localparam integer clk_period = 20;
-   localparam D_WIDTH  = 32;
+   parameter integer D_WIDTH  = 32;
    reg                       clk = 0;
    logic                     rst;
    logic [D_WIDTH  -1:0]      a;
