@@ -150,9 +150,13 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         # parameter-args and output-args as lists
         param_args = []
         for name, value in config.generics.items():
-            param_args += [ '-P', "%s.%s=\"%s\"" % (config.entity_name, name, value) ]
-        output_args = [ "-o", bin_path ]
 
+            # runner_cfg gets an extra treatment:
+            if name == 'runner_cfg':
+                param_args += [ '-P', "%s.%s=\"%s\"" % (config.entity_name, name, value) ]
+            else:
+                param_args += [ '-P', "%s.%s=%s" % (config.entity_name, name, value) ]
+        output_args = [ "-o", bin_path ]
 
         # run the compilation command within `output_path`
         success = run_command( self._compile_cmd + output_args + param_args, cwd=output_path, env=self.get_env() )
