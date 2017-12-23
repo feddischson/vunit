@@ -74,92 +74,101 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         self._libraries = []
 
 
-    def compile_source_file_command(self, source_file):
-        """
-        Returns the command to compile a single source file
-        """
-        if source_file.is_any_verilog:
-            return self.compile_verilog_file_command(source_file)
+        self._compile_cmd = [];
 
-        LOGGER.error("Unknown file type: %s", source_file.file_type)
-        raise CompileError
-
-    def compile_verilog_file_command(self, source_file):
-        """
-        Returns the command to compile a verilog file
-        """
-        args = [join(self._prefix, 'iverilog'), '-tvvp' ]
-        if source_file.is_system_verilog:
-            args += ["-g2012"]
-
-        args += ['-work', source_file.library.name, source_file.name]
-
-        for library in self._libraries:
-            args += ["-l%s" % library.name]
-        for include_dir in source_file.include_dirs:
-            args += ["-I%s" % include_dir]
-        for key, value in source_file.defines.items():
-            args += ["-D%s=%s" % (key, value)]
-        return args
 
 
     def compile_source_files(self, project, continue_on_error=False):
         """
-        Use compile_source_file_command to compile all source_files
+        This prepares the compilation by creating a `vunit.cf` file
+        and by setting self._compile_cmd.
+        Both are later used in `simulate` to compile the design before running
+        the simulation. 
+        This is different to other simulators due to Icarus internal structure,
+        where the elaboration is done within the `iverilog` call. 
+        Due to paramter-overwriting and the `runner_cfg` parameter, the elaboration
+        must be done in vunit's `simulate` step.
         """
         dependency_graph = project.create_dependency_graph()
         all_ok = True
         failures = []
         source_files = project.get_files_in_compile_order(dependency_graph=dependency_graph)
         source_files_to_skip = set()
-        t = NamedTemporaryFile( delete=False )
-        args = [join(self._prefix, 'iverilog'), '-tvvp', '-c', t.name ]
         has_sv = False
-        LOGGER.debug( "Creating temporary compilation file %s " %  t.name )
+        self._compile_cmd = [];
 
-        for library in self._libraries:
-            args += ["-l%s" % library.name]
+        cf_path = join( self._output_path, "vunit.cf" )
 
-        for source_file in source_files:
-            if source_file in source_files_to_skip:
-                LOGGER.info("Skipping %s due to failed dependencies" % simplify_path(source_file.name))
-                continue
+        with open( cf_path, "w+" ) as vunit_cf:
 
+            self._compile_cmd = [join(self._prefix, 'iverilog'), '-tvvp', '-c', cf_path ]
 
-            if not source_file.is_any_verilog:
-                LOGGER.error("Unknown file type: %s", source_file.file_type)
-                raise CompileError
+            for library in self._libraries:
+                self._compile_cmd += ["-l%s" % library.name]
 
-            t.write( bytes( source_file.name + "\n", 'UTF-8'  ) )
-            LOGGER.info('Adding %s to compilation file ...' % (simplify_path(source_file.name) ) )
+            for source_file in source_files:
+                if source_file in source_files_to_skip:
+                    LOGGER.info("Skipping %s due to failed dependencies" % simplify_path(source_file.name))
+                    continue
 
 
-            if source_file.is_system_verilog:
-                has_sv = True
+                if not source_file.is_any_verilog:
+                    LOGGER.error("Unknown file type: %s", source_file.file_type)
+                    raise CompileError
 
-            # TODO: this is not nice! Can this be handled better?
-            # vunit has includes and defines individually for each file,
-            # icarus takes it together
-            for include_dir in source_file.include_dirs:
-                args += ["-I%s" % include_dir]
-            for key, value in source_file.defines.items():
-                args += ["-D%s=%s" % (key, value)]
+                vunit_cf.write( source_file.name + "\n" )
+                LOGGER.info('Adding %s to compilation file ...' % (simplify_path(source_file.name) ) )
 
-        t.close()
+
+                if source_file.is_system_verilog:
+                    has_sv = True
+
+                # TODO: this is not nice! Can this be handled better?
+                # vunit has includes and defines individually for each file,
+                # icarus takes it together
+                for include_dir in source_file.include_dirs:
+                    self._compile_cmd += ["-I%s" % include_dir]
+                for key, value in source_file.defines.items():
+                    self._compile_cmd += ["-D%s=%s" % (key, value)]
+
 
         # use the '-g2012' flag if there is any SystemVerilog file
         if has_sv:
-            args += ["-g2012"]
+            self._compile_cmd += ["-g2012"]
 
-        try:
-            success = run_command( args, env=self.get_env() )
-        except:
-            LOGGER.error("Unexpected compilation error")
 
-        LOGGER.debug( "Removing temporary compilation file %s " %  t.name )
-        os.unlink(t.name)
+    def simulate(self, output_path, test_suite_name, config, elaborate_only):
+
+        # ensure, that the output-folder exists
+        if not run_command( ["mkdir", output_path] ):
+            LOGGER.error("Failed to create output-directory " + output_path)
+            raise OSError("Failed to create output-directory " + output_path)
+
+        # path of the binary after calling `iverilog` (compilation+elaboration) 
+        bin_path = join( output_path, self.name )
+
+        # parameter-args and output-args as lists
+        param_args = []
+        for name, value in config.generics.items():
+            param_args += [ '-P', "%s.%s=\"%s\"" % (config.entity_name, name, value) ]
+        output_args = [ "-o", bin_path ]
+
+
+        # run the compilation command within `output_path`
+        success = run_command( self._compile_cmd + output_args + param_args, cwd=output_path, env=self.get_env() )
         if not success:
             LOGGER.error("Failed to compile sources")
             raise CompileError
+
+        # run the simulation command within `output_path`
+        if not elaborate_only:
+            try:
+                args = [join(self._prefix, "vvp"), "-n", bin_path, "-lxt2" ]
+
+                success = run_command( args, cwd=output_path, env=self.get_env() )
+            except:
+                LOGGER.error("Failed to run simulation")
+                return False
+        return True
 
 
