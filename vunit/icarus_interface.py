@@ -48,6 +48,9 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
     compile_options = [ ]
 
     sim_options = [ ]
+    sim_options = [
+        ListOfStringOption("icarus.vvp_flags")
+    ]
 
 
     @classmethod
@@ -181,7 +184,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         if not elaborate_only:
             try:
                 args = [join(self._prefix, "vvp"), "-n", bin_path, "-lxt2" ]
-
+                args = config.sim_options.get('icarus.vvp_flags', args )
                 success = run_command( args, cwd=output_path, env=self.get_env() )
             except:
                 LOGGER.error("Failed to run simulation")
