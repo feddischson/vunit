@@ -114,6 +114,8 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
             if source_files:
                 max_source_file_name = max(len(simplify_path(source_file.name)) for source_file in source_files)
 
+            added_include_paths = []
+            added_defines       = []
             for source_file in source_files:
                 printer.write('Checking for compilation %s' 
                         % (simplify_path(source_file.name)+":").ljust(max_source_file_name+2) )
@@ -143,9 +145,13 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
                 # vunit has includes and defines individually for each file,
                 # icarus takes it together
                 for include_dir in source_file.include_dirs:
-                    self._compile_cmd += ["-I%s" % include_dir]
+                    if not include_dir in added_include_paths:
+                        self._compile_cmd += ["-I%s" % include_dir]
+                        added_include_paths.append( include_dir )
                 for key, value in source_file.defines.items():
-                    self._compile_cmd += ["-D%s=%s" % (key, value)]
+                    if not key in added_defines:
+                        self._compile_cmd += ["-D%s=%s" % (key, value)]
+                        added_defines.append( key )
 
 
         # use the '-g2012' flag if there is any SystemVerilog file
