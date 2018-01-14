@@ -78,7 +78,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
 
 
 
-    def compile_source_files(self, project, continue_on_error=False):
+    def compile_source_files(self, project, printer, continue_on_error=False):
         """
         This prepares the compilation by creating a `vunit.cf` file
         and by setting self._compile_cmd.
@@ -106,16 +106,29 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
             for library in self._libraries:
                 self._compile_cmd += ["-l%s" % library.name]
 
+
+            max_source_file_name = 0
+            if source_files:
+                max_source_file_name = max(len(simplify_path(source_file.name)) for source_file in source_files)
+
             for source_file in source_files:
+                printer.write('Checking for compilation %s' 
+                        % (simplify_path(source_file.name)+":").ljust(max_source_file_name+2) )
+
                 if source_file in source_files_to_skip:
                     LOGGER.info("Skipping %s due to failed dependencies" % simplify_path(source_file.name))
+                    printer.write("skipped", fg="rgi")
+                    printer.write("\n")
                     continue
 
 
                 if not source_file.is_any_verilog:
+                    printer.write("failed (unknown file type)", fg="ri")
                     LOGGER.error("Unknown file type: %s", source_file.file_type)
                     raise CompileError
 
+                printer.write("added", fg="gi")
+                printer.write("\n")
                 vunit_cf.write( source_file.name + "\n" )
                 LOGGER.info('Adding %s to compilation file ...' % (simplify_path(source_file.name) ) )
 
