@@ -73,6 +73,11 @@ module test_runner;
       int       index;
       bit       break_cond;
 
+      // we can leave if there is no configuration for this TEST_SUITE
+      if( runner_cfg.len() == 0 ) begin
+        return 0;
+      end
+
       break_cond = 0;
       prefix = "enabled_test_cases : ";
       index = -1;
