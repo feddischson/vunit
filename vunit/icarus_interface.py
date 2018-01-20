@@ -189,9 +189,11 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         # run the simulation command within `output_path`
         if not elaborate_only:
             try:
-                args = [join(self._prefix, "vvp"), "-n", bin_path, "-lxt2",  ] + config.sim_options.get('icarus.vvp_flags' )
+                sim_options = config.sim_options.get('icarus.vvp_flags' ) or [];
+                args = [join(self._prefix, "vvp"), "-n", "-lxt2" ] + sim_options + [ bin_path ]
                 success = run_command( args, cwd=output_path, env=self.get_env() )
-            except:
+            except Exception as e:
+                LOGGER.error(e)
                 LOGGER.error("Failed to run simulation")
                 return False
         return True
