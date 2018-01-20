@@ -71,8 +71,9 @@ module test_runner;
       // Ugly hack pending actual dictionary parsing
       string    prefix;
       int       index;
-      bit       break_cond = 0;
+      bit       break_cond;
 
+      break_cond = 0;
       prefix = "enabled_test_cases : ";
       index = -1;
       for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
@@ -146,9 +147,10 @@ module test_runner;
 
    function int loop();
       int       exit_without_errors;
-      bit       break_cond = 0;
+      bit       break_cond;
       int       found;
 
+      break_cond = 0;
       if (phase == init) begin
          if (test_cases_to_run[0] == "__all__") begin
 
