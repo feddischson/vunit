@@ -137,6 +137,35 @@ module test_runner;
       end
       output_path = search_replace(output_path, "::", ":");
 
+      prefix = "dumpfile : ";
+      index = -1;
+      break_cond = 0;
+      for (int i=0; i<runner_cfg.len() && !break_cond; i++) begin
+         if (runner_cfg.substr(i, i+prefix.len()-1) == prefix) begin
+            index = i + prefix.len();
+            break_cond = 1;
+         end
+      end
+
+      if (index != -1) begin
+         break_cond = 0;
+         for (int i=index; i<runner_cfg.len() && !break_cond; i++) begin
+            if (i == runner_cfg.len()-1) begin
+               dumpfile = runner_cfg.substr(index, i);
+               break_cond = 1;
+            end
+            else if (runner_cfg.substr(i,i) == ",") begin
+               i++;
+               if (runner_cfg.substr(i,i) != ",") begin
+                  dumpfile = runner_cfg.substr(index, i-2);
+                  break_cond = 1;
+               end
+            end
+         end
+         $dumpfile( dumpfile );
+         $dumpvars;
+      end
+
       phase = idle;
       test_idx = 0;
       exit_without_errors = 0;
