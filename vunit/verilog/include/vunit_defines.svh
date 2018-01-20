@@ -34,7 +34,8 @@
              string expected_str; \
              string full_msg; \
              int index; \
-             bit   break_cond = 0;\
+             bit break_cond;  \
+             break_cond = 0;\
              got_str = "";\
              expected_str ="";\
              $swrite(got_str, got); \
