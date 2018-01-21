@@ -77,94 +77,102 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         self._libraries = []
 
 
-        self._compile_cmd = [];
-
+        self._basic_command = [ join(self._prefix, 'iverilog'), '-tvvp', '-g2012', '-c' ]
 
 
     def compile_source_files(self, project, printer, continue_on_error=False):
         """
-        This prepares the compilation by creating a `vunit.cf` file
-        and by setting self._compile_cmd.
-        Both are later used in `simulate` to compile the design before running
-        the simulation. 
-        This is different to other simulators due to Icarus internal structure,
-        where the elaboration is done within the `iverilog` call. 
-        Due to paramter-overwriting and the `runner_cfg` parameter, the elaboration
-        must be done in vunit's `simulate` step.
         """
-        dependency_graph = project.create_dependency_graph()
+        self._toplevel_units = {}
+        self._dependency_graph = project.create_dependency_graph()
         all_ok = True
         failures = []
-        source_files = project.get_files_in_compile_order(dependency_graph=dependency_graph)
-        source_files_to_skip = set()
-        has_sv = False
-        self._compile_cmd = [];
+        source_files = project.get_files_in_compile_order(dependency_graph=self._dependency_graph)
 
-        cf_path = join( self._output_path, "vunit.cf" )
+        for source_file in source_files:
+            dependent_nodes = self._dependency_graph.get_dependent( [source_file] ) 
+            if len( dependent_nodes ) == 1 and source_file in dependent_nodes:
+                # This must be a root-node because nothing depends on this
 
+                for unit in source_file.design_units:
+                    self._toplevel_units[ unit.name ] = source_file
+
+
+    def simulate(self, output_path, test_suite_name, config, elaborate_only):
+
+        # Ensure that the unit exists in our top-files.
+        if not ( config.design_unit_name in self._toplevel_units ):
+            LOGGER.error( "Unit {0} can't be found in {1}".format( 
+                config.design_unit_name, self._toplevel_units.keys() ) )
+            raise CompileError( "Unit {0} can't be found.".format(
+                config.design_unit_name )  )
+
+        # the top source-file which contains the `TEST_CASE` statement
+        # of this simulation run
+        top_src      = self._toplevel_units[ config.design_unit_name ]
+
+        # All dependent file of `top_src`.
+        source_files = self._dependency_graph.get_dependencies( [ top_src ] )
+
+        # All sorted source files (including all top-files)
+        all_sorted_source_files = self._dependency_graph.toposort( )
+
+        # All top-files (which usually but not necessary contain the test-benches)
+        all_top_src = self._toplevel_units.values()
+
+        # Get a sorted list where only one top-file is at the end.
+        sorted_source_files = []
+        for s in all_sorted_source_files:
+
+            # Note: the second part `or s not in all_top_src` is
+            # required because vunit doesn't detect situations where
+            # a module is used within generate.
+            # With this, we ensure, that all non-top sources are 
+            # considered.
+            # TODO fix the issue in Vunit (parser.py) and remove
+            # the `or` part
+            if s in source_files or s not in all_top_src:
+                sorted_source_files.append( s )
+
+        # ensure, that the output-folder exists
+        if not run_command( ["mkdir", output_path] ):
+            LOGGER.error("Failed to create output-directory " + output_path)
+            raise OSError("Failed to create output-directory " + output_path)
+
+        # path of the verilog cf file, where all required verilog files are written
+        cf_path = join( output_path, "vunit.cf" )
+
+        compile_cmd  = [];
         with open( cf_path, "w+" ) as vunit_cf:
 
-            self._compile_cmd = [join(self._prefix, 'iverilog'), '-tvvp', '-c', cf_path ]
+            compile_cmd = [join(self._prefix, 'iverilog'), '-tvvp', '-g2012', '-c', cf_path ]
 
             for library in self._libraries:
-                self._compile_cmd += ["-l%s" % library.name]
-
-
-            max_source_file_name = 0
-            if source_files:
-                max_source_file_name = max(len(simplify_path(source_file.name)) for source_file in source_files)
+                compile_cmd += ["-l%s" % library.name]
 
             added_include_paths = []
             added_defines       = []
-            for source_file in source_files:
-                printer.write('Checking for compilation %s' 
-                        % (simplify_path(source_file.name)+":").ljust(max_source_file_name+2) )
-
-                if source_file in source_files_to_skip:
-                    LOGGER.info("Skipping %s due to failed dependencies" % simplify_path(source_file.name))
-                    printer.write("skipped", fg="rgi")
-                    printer.write("\n")
-                    continue
-
+            for source_file in sorted_source_files:
 
                 if not source_file.is_any_verilog:
-                    printer.write("failed (unknown file type)", fg="ri")
                     LOGGER.error("Unknown file type: %s", source_file.file_type)
                     raise CompileError
 
-                printer.write("added", fg="gi")
-                printer.write("\n")
                 vunit_cf.write( source_file.name + "\n" )
                 LOGGER.info('Adding %s to compilation file ...' % (simplify_path(source_file.name) ) )
-
-
-                if source_file.is_system_verilog:
-                    has_sv = True
 
                 # TODO: this is not nice! Can this be handled better?
                 # vunit has includes and defines individually for each file,
                 # icarus takes it together
                 for include_dir in source_file.include_dirs:
                     if not include_dir in added_include_paths:
-                        self._compile_cmd += ["-I%s" % include_dir]
+                        compile_cmd += ["-I%s" % include_dir]
                         added_include_paths.append( include_dir )
                 for key, value in source_file.defines.items():
                     if not key in added_defines:
-                        self._compile_cmd += ["-D%s=%s" % (key, value)]
+                        compile_cmd += ["-D%s=%s" % (key, value)]
                         added_defines.append( key )
 
-
-        # use the '-g2012' flag if there is any SystemVerilog file
-        if has_sv:
-            self._compile_cmd += ["-g2012"]
-
-
-    def simulate(self, output_path, test_suite_name, config, elaborate_only):
-
-        # ensure, that the output-folder exists
-        if not run_command( ["mkdir", output_path] ):
-            LOGGER.error("Failed to create output-directory " + output_path)
-            raise OSError("Failed to create output-directory " + output_path)
 
         # path of the binary after calling `iverilog` (compilation+elaboration) 
         bin_path = join( output_path, self.name )
@@ -181,7 +189,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         output_args = [ "-o", bin_path ]
 
         # run the compilation command within `output_path`
-        success = run_command( self._compile_cmd + output_args + param_args, cwd=output_path, env=self.get_env() )
+        success = run_command( compile_cmd + output_args + param_args, cwd=output_path, env=self.get_env() )
         if not success:
             LOGGER.error("Failed to compile sources")
             raise CompileError
