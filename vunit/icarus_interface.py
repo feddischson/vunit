@@ -123,15 +123,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         # Get a sorted list where only one top-file is at the end.
         sorted_source_files = []
         for s in all_sorted_source_files:
-
-            # Note: the second part `or s not in all_top_src` is
-            # required because vunit doesn't detect situations where
-            # a module is used within generate.
-            # With this, we ensure, that all non-top sources are 
-            # considered.
-            # TODO fix the issue in Vunit (parser.py) and remove
-            # the `or` part
-            if s in source_files or s not in all_top_src:
+            if s in source_files:
                 sorted_source_files.append( s )
 
         # ensure, that the output-folder exists
