@@ -41,7 +41,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
 
     The interface supports....
     """
-    name = "vsim"
+    name = "icarus"
     supports_gui_flag = False
     package_users_depend_on_bodies = False
 
@@ -59,7 +59,8 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         Create new instance from command line arguments object
         """
 
-        return cls( prefix=cls.find_prefix() )
+        return cls(prefix=cls.find_prefix(),
+                   output_path=output_path)
 
     @classmethod
     def find_prefix_from_path(cls):
@@ -71,8 +72,9 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
                                   constraints=[])
 
 
-    def __init__(self, prefix ):
-        SimulatorInterface.__init__(self)
+    def __init__(self, prefix, output_path ):
+        gui = False
+        SimulatorInterface.__init__(self, output_path, gui)
         self._prefix = prefix
         self._libraries = []
 
@@ -127,9 +129,11 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
                 sorted_source_files.append( s )
 
         # ensure, that the output-folder exists
-        if not run_command( ["mkdir", output_path] ):
-            LOGGER.error("Failed to create output-directory " + output_path)
-            raise OSError("Failed to create output-directory " + output_path)
+        if not os.path.exists( output_path ):
+            os.mkdir( output_path )
+        if os.path.exists( output_path ) and not os.path.isdir( output_path ):
+            LOGGER.error("The dir '" + output_path + "' is not a directory")
+            raise OSError("The dir '" + output_path + "' is not a directory")
 
         # path of the verilog cf file, where all required verilog files are written
         cf_path = join( output_path, "vunit.cf" )

@@ -22,6 +22,7 @@ module test_runner;
    string       test_cases_found[$];
    string       test_cases_to_run[$];
    string       output_path;
+   string       dumpfile;
    int          test_idx = 0;
    int          exit_without_errors = 0;
    int          trace_fd;
@@ -97,7 +98,7 @@ module test_runner;
          if (i == runner_cfg.len()-1) begin
             test_cases_to_run.push_back(runner_cfg.substr(index, i));
          end
-         else if (runner_cfg[i] == ",") begin
+         else if ( runner_cfg.substr(i,i) == ",") begin
             test_cases_to_run.push_back(runner_cfg.substr(index, i-1));
             index = i+2;
             i++;
@@ -127,7 +128,7 @@ module test_runner;
             output_path = runner_cfg.substr(index, i);
             break_cond = 1;
          end
-         else if (runner_cfg[i] == ",") begin
+         else if (runner_cfg.substr(i,i) == ",") begin
             i++;
             if (runner_cfg.substr(i,i) != ",") begin
                output_path = runner_cfg.substr(index, i-2);
