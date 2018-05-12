@@ -11,6 +11,7 @@ Interface towards Icarus Verilog simulator
 from __future__ import print_function
 
 import logging
+import re
 import sys
 import io
 import os
@@ -29,7 +30,8 @@ from vunit.ostools import Process, file_exists
 from vunit.simulator_interface import (SimulatorInterface,
                                        ListOfStringOption,
                                        StringOption,
-                                       run_command)
+                                       run_command,
+                                       check_output)
 from vunit.exceptions import CompileError
 
 LOGGER = logging.getLogger(__name__)
@@ -42,6 +44,7 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
     The interface supports....
     """
     name = "icarus"
+    min_version = [ 10, 2, 0 ]
     supports_gui_flag = False
     package_users_depend_on_bodies = False
 
@@ -81,6 +84,27 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
 
         self._basic_command = [ join(self._prefix, 'iverilog'), '-tvvp', '-g2012', '-c' ]
 
+    def get_icarus_version( self ):
+        """
+        """
+        output = check_output( ['iverilog', '-V'], env=self.get_env() )
+
+        # Get the first line ...
+        output = output.splitlines()[0]
+
+        # and extract the version
+        m = re.search( r"^(\D|\s)+version\s+(\d+).(\d+)(.(\d+))?", output )
+        version = [ 0, 0, 0]
+        if m:
+            g = m.groups()
+            if g[1]:
+                version[0] = int(g[1])
+            if g[2]:
+                version[1] = int(g[2])
+            if g[4]:
+                version[2] = int(g[4])
+        return version
+
 
     def compile_source_files(self, project, printer, continue_on_error=False):
         """
@@ -101,6 +125,14 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
 
 
     def simulate(self, output_path, test_suite_name, config, elaborate_only):
+
+        version = self.get_icarus_version( )
+        if version < IcarusInterface.min_version:
+            LOGGER.error( "Icarus version {0} not supported, min version is {1} ".format(
+                version, IcarusInterface.min_version ) )
+            raise CompileError( "Icarus version {0} not supported, min version is {1} ".format(
+                version, IcarusInterface.min_version ) )
+
 
         # Ensure that the unit exists in our top-files.
         if not ( config.design_unit_name in self._toplevel_units ):
