@@ -55,4 +55,5 @@
                end \
              full_msg = {"CHECK_EQUAL failed! Got ",`"got`", "=",  got_str, " expected ", expected_str, ". ", msg}; \
              $error(full_msg); \
+             $stop(1); \
           end
