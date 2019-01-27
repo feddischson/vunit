@@ -76,9 +76,6 @@ class IcarusInterface(SimulatorInterface):  # pylint: disable=too-many-instance-
         self._prefix = prefix
         self._libraries = []
 
-        self._basic_command = [join(self._prefix, 'iverilog'),
-                               '-tvvp', '-g2012', '-c']
-
     def get_icarus_version(self):
         """
         """
